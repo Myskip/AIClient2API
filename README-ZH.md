@@ -68,6 +68,7 @@
       感谢 APIKEY.FUN 赞助本项目！APIKEY.FUN 是一家专业的企业级 AI 中转站，致力于为企业和个人开发者提供稳定、高效、低成本的其他 AI 模型 API 接入服务。平台支持 Claude、OpenAI、Gemini 等主流热门模型，价格低至官方原价的 7%。通过<a href="https://apikey.fun/register?aff=AIClient2API">本项目专属链接</a>注册，还可享受最高 <strong>充值永久 95 折</strong> 专属优惠。
     </td>
   </tr>
+  <!--
   <tr>
     <td width="25%" align="center" valign="middle">
       <a href="https://visioncoder.cn">
@@ -78,6 +79,7 @@
       感谢 VisionCoder 对本项目的支持。<a href="https://visioncoder.cn">VisionCoder 开发平台</a> 是一个可靠高效的 API 中继服务提供商，提供 Claude Code、Codex、Gemini 等主流 AI 模型，帮助开发者和团队更轻松地集成 AI 功能，提升工作效率。此外，VisionCoder 还提供 <strong>Claude Max 200 与 GPT Pro 200 高级成品号</strong>的独家售卖渠道，助力体验全网顶配 AI 的算力与体验。
     </td>
   </tr>
+  -->
   <tr>
     <td width="25%" align="center" valign="middle">
       <a href="https://www.atlascloud.ai/console/coding-plan">

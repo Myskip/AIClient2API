@@ -68,6 +68,7 @@
       APIKEY.FUN による本プロジェクトへのスポンサーに感謝します！APIKEY.FUN はプロフェッショナルな企業向け AI リレーサービスであり、企業や個人開発者に安定、効率的、低コストな AI モデル API アクセスサービスを提供することに尽力しています。Claude、OpenAI、Gemini などの主要な人気モデルをサポートしており、価格は公式価格のわずか 7% からです。本プロジェクトの<a href="https://apikey.fun/register?aff=AIClient2API">専用リンク</a>から登録すると、永続的なチャージに対して最大 <strong>5% オフ（95折）</strong> の特別割引を受けることができます。
     </td>
   </tr>
+  <!--
   <tr>
     <td width="25%" align="center" valign="middle">
       <a href="https://visioncoder.cn">
@@ -78,6 +79,7 @@
       Thanks to VisionCoder for supporting this project. <a href="https://visioncoder.cn">VisionCoder Developer Platform</a> is a reliable and efficient API relay service provider, offering access to mainstream AI models such as Claude Code, Codex, and Gemini. It helps developers and teams integrate AI capabilities more easily and improve productivity. Additionally, VisionCoder now offers retail channels for <strong>Claude Max 200 and GPT Pro 200 premium accounts</strong>, providing users with instant access to top-tier AI computing power and features.
     </td>
   </tr>
+  -->
   <tr>
     <td width="25%" align="center" valign="middle">
       <a href="https://www.atlascloud.ai/console/coding-plan">

@@ -14,6 +14,25 @@ import { apiClient } from './auth.js';
 function getBaseProviderConfigs() {
     return [
         { 
+            id: 'qiniu', 
+            name: 'Qiniu Cloud AI', 
+            icon: 'fa-cloud',
+            registerUrl: 'https://s.qiniu.com/FRF7bq',
+            docUrl: 'https://docs.modelink.ai/api-endpoints/overview'
+        },
+        { 
+            id: 'fenno', 
+            name: 'Fenno.ai', 
+            icon: 'fa-code',
+            registerUrl: 'https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=2EW65KEQC938'
+        },
+        { 
+            id: 'atlascloud', 
+            name: 'AtlasCloud', 
+            icon: 'fa-cloud',
+            registerUrl: 'https://www.atlascloud.ai/console/coding-plan'
+        },
+        { 
             id: 'forward-api', 
             name: 'NewAPI', 
             icon: 'fa-share-square'
@@ -85,25 +104,6 @@ function getBaseProviderConfigs() {
             id: 'openaiResponses-custom', 
             name: 'OpenAI Responses', 
             icon: 'fa-reply-all'
-        },
-        { 
-            id: 'qiniu', 
-            name: 'Qiniu Cloud AI', 
-            icon: 'fa-cloud',
-            registerUrl: 'https://s.qiniu.com/FRF7bq',
-            docUrl: 'https://docs.modelink.ai/api-endpoints/overview'
-        },
-        { 
-            id: 'fenno', 
-            name: 'Fenno.ai', 
-            icon: 'fa-code',
-            registerUrl: 'https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=2EW65KEQC938'
-        },
-        { 
-            id: 'atlascloud', 
-            name: 'AtlasCloud', 
-            icon: 'fa-cloud',
-            registerUrl: 'https://www.atlascloud.ai/console/coding-plan'
         },
     ];
 }
