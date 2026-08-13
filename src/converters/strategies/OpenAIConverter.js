@@ -1945,7 +1945,12 @@ export class OpenAIConverter extends BaseConverter {
         const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
 
         const usage = this._buildResponsesUsageFromOpenAIUsage(openaiResponse.usage);
-        const status = hasToolCalls ? 'requires_action' : (choice.finish_reason === 'stop' ? 'completed' : 'in_progress');
+        // Responses API 的终态始终是 completed，工具待执行由 output 中的
+        // function_call item 表达，而非顶层 status。"requires_action" 属于
+        // Assistants runs API，严格客户端会因未知 status 报错。
+        const status = (hasToolCalls || choice.finish_reason === 'stop' || choice.finish_reason === 'tool_calls')
+            ? 'completed'
+            : 'in_progress';
 
         return {
             background: false,

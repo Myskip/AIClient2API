@@ -304,7 +304,9 @@ function generateResponseCompleted(requestId, usage) {
       },
       safety_identifier: `user-${uuidv4().replace(/-/g, '')}`, // 随机值
       service_tier: "default",
-      status: (state.toolCalls && state.toolCalls.length > 0) ? "requires_action" : "completed",
+      // Responses API 的终态始终是 completed，即使 output 中含 function_call item。
+      // "requires_action" 属于 Assistants runs API，严格客户端会因未知 status 报错。
+      status: "completed",
       store: false,
       temperature: 1,
       text: {
