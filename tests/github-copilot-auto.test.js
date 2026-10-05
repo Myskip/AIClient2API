@@ -17,6 +17,7 @@ import { GitHubCopilotApiService, normalizeCopilotAutoTier } from '../src/provid
 import { PROVIDER_MODELS } from '../src/providers/provider-models.js';
 import { ProviderPoolManager } from '../src/providers/provider-pool-manager.js';
 import logger from '../src/utils/logger.js';
+import { Readable } from 'node:stream';
 
 describe('GitHub Copilot Auto routing', () => {
     function createService() {
@@ -92,6 +93,56 @@ describe('GitHub Copilot Auto routing', () => {
             model: 'gpt-4.1',
             messages: [{ role: 'user', content: 'Health check.' }]
         }));
+    });
+
+    test('retries a stream failure before the first SSE chunk', async () => {
+        const { service } = createService();
+        service.config.REQUEST_MAX_RETRIES = 1;
+        service.config.REQUEST_BASE_DELAY = 1;
+        const networkError = Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
+        const firstAttempt = Readable.from((async function* () {
+            throw networkError;
+        })());
+        const retryAttempt = Readable.from([
+            Buffer.from('data: {"id":"completion-2","choices":[{"delta":{"content":"Hello world"}}]}\n\n'),
+            Buffer.from('data: [DONE]\n\n')
+        ]);
+        service.axiosInstance.request = jest.fn()
+            .mockResolvedValueOnce({ data: firstAttempt })
+            .mockResolvedValueOnce({ data: retryAttempt });
+
+        const chunks = [];
+        for await (const chunk of service.generateContentStream('gpt-4.1', { model: 'gpt-4.1' })) {
+            chunks.push(chunk);
+        }
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].id).toBe('completion-2');
+        expect(service.axiosInstance.request).toHaveBeenCalledTimes(2);
+    });
+
+    test('propagates a stream failure after the first SSE chunk without restarting', async () => {
+        const { service } = createService();
+        service.config.REQUEST_MAX_RETRIES = 1;
+        service.config.REQUEST_BASE_DELAY = 1;
+        const networkError = Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
+        const firstAttempt = Readable.from((async function* () {
+            yield Buffer.from('data: {"id":"completion-1","choices":[{"delta":{"content":"Hello "}}]}\n\n');
+            throw networkError;
+        })());
+        const retryAttempt = Readable.from([
+            Buffer.from('data: {"id":"completion-2","choices":[{"delta":{"content":"Hello world"}}]}\n\n'),
+            Buffer.from('data: [DONE]\n\n')
+        ]);
+        service.axiosInstance.request = jest.fn()
+            .mockResolvedValueOnce({ data: firstAttempt })
+            .mockResolvedValueOnce({ data: retryAttempt });
+
+        const stream = service.generateContentStream('gpt-4.1', { model: 'gpt-4.1' });
+        const firstChunk = await stream.next();
+        expect(firstChunk.value.choices[0].delta.content).toBe('Hello ');
+        await expect(stream.next()).rejects.toBe(networkError);
+        expect(service.axiosInstance.request).toHaveBeenCalledTimes(1);
     });
 
     test('preserves Copilot API error details for health-check diagnostics', async () => {

@@ -425,6 +425,7 @@ export class GitHubCopilotApiService {
 
         // GitHub Copilot streaming requires stream to be set to true
         const streamRequestBody = { ...body, stream: true };
+        let hasYieldedChunk = false;
 
         try {
             const axiosConfig = {
@@ -456,6 +457,7 @@ export class GitHubCopilotApiService {
                         }
                         try {
                             const parsedChunk = JSON.parse(jsonData);
+                            hasYieldedChunk = true;
                             yield parsedChunk;
                         } catch (e) {
                             logger.warn("[GitHubCopilotApiService] Failed to parse stream chunk JSON:", e.message, "Data:", jsonData);
@@ -486,7 +488,7 @@ export class GitHubCopilotApiService {
                     logger.warn(`[GitHub Copilot API] Received 429 with Retry-After: ${retryAfter}ms during stream. Throwing to upper layer.`);
                     throw error;
                 }
-                if (retryCount < maxRetries) {
+                if (!hasYieldedChunk && retryCount < maxRetries) {
                     const delay = baseDelay * Math.pow(2, retryCount);
                     logger.info(`[GitHub Copilot API] Received 429 (Too Many Requests) during stream. No Retry-After found. Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
                     await new Promise(resolve => setTimeout(resolve, delay));
@@ -496,7 +498,7 @@ export class GitHubCopilotApiService {
             }
 
             // Handle other retryable errors (5xx server errors)
-            if (status >= 500 && status < 600 && retryCount < maxRetries) {
+            if (!hasYieldedChunk && status >= 500 && status < 600 && retryCount < maxRetries) {
                 const delay = baseDelay * Math.pow(2, retryCount);
                 logger.info(`[GitHub Copilot API] Received ${status} server error during stream. Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
@@ -505,7 +507,7 @@ export class GitHubCopilotApiService {
             }
 
             // Handle network errors with exponential backoff
-            if (isNetworkError && retryCount < maxRetries) {
+            if (!hasYieldedChunk && isNetworkError && retryCount < maxRetries) {
                 const delay = baseDelay * Math.pow(2, retryCount);
                 const errorIdentifier = errorCode || errorMessage.substring(0, 50);
                 logger.info(`[GitHub Copilot API] Network error (${errorIdentifier}) during stream. Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
