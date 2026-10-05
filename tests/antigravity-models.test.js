@@ -27,32 +27,52 @@ describe('Antigravity model availability', () => {
         ]));
     });
 
-    test('retires third-party aliases starting November 3, 2026 UTC', () => {
-        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff - 1)).toBe(false);
-        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff)).toBe(true);
-        expect(isAntigravityModelRetired('gpt-oss-120b-medium', cutoff)).toBe(true);
-        expect(isAntigravityModelRetired('gemini-3.8-flash-medium', cutoff)).toBe(false);
+    test('applies the retirement cutoff only to explicitly free-tier accounts', () => {
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff - 1, 'free-tier')).toBe(false);
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff, 'free-tier')).toBe(true);
+        expect(isAntigravityModelRetired('gpt-oss-120b-medium', cutoff, 'free-tier')).toBe(true);
+        expect(isAntigravityModelRetired('gemini-3.8-flash-medium', cutoff, 'free-tier')).toBe(false);
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff - 1, 'Google AI Pro(free)')).toBe(false);
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff, 'Google AI Pro(free)')).toBe(false);
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff - 1, undefined)).toBe(false);
+        expect(isAntigravityModelRetired('gemini-claude-sonnet-4-6', cutoff, undefined)).toBe(false);
     });
 
-    test('omits retired models from the API list and rejects direct requests', async () => {
-        const service = Object.create(AntigravityApiService.prototype);
-        service.isInitialized = true;
-        service.availableModels = [
-            'gemini-3.8-flash-medium',
-            'gemini-claude-sonnet-4-6',
-            'gpt-oss-120b-medium'
-        ];
+    test('filters model lists and direct requests according to account tier', async () => {
         jest.useFakeTimers().setSystemTime(cutoff);
 
         try {
-            const response = await service.listModels();
-            expect(response.models.map(model => model.name)).toEqual([
+            const createService = tierId => {
+                const service = Object.create(AntigravityApiService.prototype);
+                service.isInitialized = true;
+                service.tierId = tierId;
+                service.availableModels = [
+                    'gemini-3.8-flash-medium',
+                    'gemini-claude-sonnet-4-6',
+                    'gpt-oss-120b-medium'
+                ];
+                return service;
+            };
+
+            const freeService = createService('free-tier');
+            const freeResponse = await freeService.listModels();
+            expect(freeResponse.models.map(model => model.name)).toEqual([
                 'models/gemini-3.8-flash-medium'
             ]);
-            expect(() => service.buildAntigravityPayload('gemini-claude-sonnet-4-6', {}))
+            expect(() => freeService.buildAntigravityPayload('gemini-claude-sonnet-4-6', {}))
                 .toThrow('Free-plan access to non-Gemini model');
-            expect(() => service.buildAntigravityPayload('gpt-oss-120b-medium', {}))
+            expect(() => freeService.buildAntigravityPayload('gpt-oss-120b-medium', {}))
                 .toThrow('Free-plan access to non-Gemini model');
+
+            for (const tierId of ['Google AI Pro', undefined]) {
+                const service = createService(tierId);
+                const response = await service.listModels();
+                expect(response.models.map(model => model.name)).toEqual([
+                    'models/gemini-3.8-flash-medium',
+                    'models/gemini-claude-sonnet-4-6',
+                    'models/gpt-oss-120b-medium'
+                ]);
+            }
         } finally {
             jest.useRealTimers();
         }

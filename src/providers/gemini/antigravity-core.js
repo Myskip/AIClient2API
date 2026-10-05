@@ -209,9 +209,9 @@ function resolveAntigravityUpstreamModel(modelName) {
     return ANTIGRAVITY_CLIENT_TO_UPSTREAM_MODEL[baseModel] || baseModel;
 }
 
-export function isAntigravityModelRetired(modelName, now = Date.now()) {
+export function isAntigravityModelRetired(modelName, now = Date.now(), tierId) {
     const upstreamModel = resolveAntigravityUpstreamModel(modelName);
-    return now >= ANTIGRAVITY_FREE_PLAN_THIRD_PARTY_CUTOFF &&
+    return tierId === 'free-tier' && now >= ANTIGRAVITY_FREE_PLAN_THIRD_PARTY_CUTOFF &&
         (upstreamModel.startsWith('claude-') || upstreamModel.startsWith('gpt-oss-'));
 }
 
@@ -1305,8 +1305,10 @@ export class AntigravityApiService {
                 
                 // 尝试从 allowedTiers 中获取当前 tierId，如果存在 paidTier 则优先使用 paidTier.id
                 const defaultTier = loadResponse.allowedTiers?.find(tier => tier.isDefault);
-                const baseTier = defaultTier?.id || 'free-tier';
-                this.tierId = loadResponse.paidTier?.name ? `${loadResponse.paidTier.name}(${baseTier.replace('-tier', '')})` : baseTier;
+                const baseTier = defaultTier?.id;
+                this.tierId = loadResponse.paidTier?.name
+                    ? `${loadResponse.paidTier.name}${baseTier ? `(${baseTier.replace('-tier', '')})` : ''}`
+                    : baseTier;
                 
                 // 获取可用模型
                 await this.fetchAvailableModels();
@@ -1410,7 +1412,7 @@ export class AntigravityApiService {
         const currentTime = Date.now();
         const now = Math.floor(currentTime / 1000);
         const formattedModels = this.availableModels
-            .filter(modelId => !isAntigravityModelRetired(modelId, currentTime))
+            .filter(modelId => !isAntigravityModelRetired(modelId, currentTime, this.tierId))
             .map(modelId => {
                 const displayName = modelId.split('-').map(word =>
                     word.charAt(0).toUpperCase() + word.slice(1)
@@ -1950,7 +1952,7 @@ export class AntigravityApiService {
 
     buildAntigravityPayload(model, requestBody) {
         let selectedModel = normalizeAntigravityModelId(model);
-        if (isAntigravityModelRetired(selectedModel)) {
+        if (isAntigravityModelRetired(selectedModel, Date.now(), this.tierId)) {
             throw new Error(`[Antigravity] Free-plan access to non-Gemini model '${selectedModel}' ended on 2026-11-03.`);
         }
         if (!this.availableModels.includes(selectedModel) && !isKnownAntigravityModel(selectedModel)) {
