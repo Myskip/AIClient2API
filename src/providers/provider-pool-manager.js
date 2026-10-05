@@ -1063,7 +1063,7 @@ export class ProviderPoolManager {
             if (providerType === MODEL_PROVIDER.ANTIGRAVITY) {
                 const { isAntigravityModelRetired } = await import('./gemini/antigravity-core.js');
                 if (isAntigravityModelRetired(requestedModel, now, 'free-tier')) {
-                    modelFilteredProviders = modelFilteredProviders.filter(provider => {
+                    const tierEligibility = await Promise.all(modelFilteredProviders.map(async provider => {
                         try {
                             const tempConfig = {
                                 ...this.globalConfig,
@@ -1072,13 +1072,18 @@ export class ProviderPoolManager {
                             };
                             delete tempConfig.providerPools;
                             const serviceAdapter = getServiceAdapter(tempConfig);
-                            const tierId = serviceAdapter.antigravityApiService?.tierId;
+                            const antigravityService = serviceAdapter.antigravityApiService;
+                            if (antigravityService && !antigravityService.isInitialized) {
+                                await antigravityService.initialize();
+                            }
+                            const tierId = antigravityService?.tierId;
                             return !isAntigravityModelRetired(requestedModel, now, tierId);
                         } catch (err) {
                             this._log('debug', `Failed to inspect Antigravity account tier for ${provider.uuid}: ${err.message}`);
                             return true;
                         }
-                    });
+                    }));
+                    modelFilteredProviders = modelFilteredProviders.filter((_, index) => tierEligibility[index]);
                 }
             }
 
