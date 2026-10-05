@@ -1953,7 +1953,11 @@ export class AntigravityApiService {
     buildAntigravityPayload(model, requestBody) {
         let selectedModel = normalizeAntigravityModelId(model);
         if (isAntigravityModelRetired(selectedModel, Date.now(), this.tierId)) {
-            throw new Error(`[Antigravity] Free-plan access to non-Gemini model '${selectedModel}' ended on 2026-11-03.`);
+            const error = new Error(`[Antigravity] Free-plan access to non-Gemini model '${selectedModel}' ended on 2026-11-03.`);
+            error.status = 400;
+            error.response = { status: 400 };
+            error.skipErrorCount = true;
+            throw error;
         }
         if (!this.availableModels.includes(selectedModel) && !isKnownAntigravityModel(selectedModel)) {
             if (this.config.MODEL_FALLBACK_ENABLED === false) {

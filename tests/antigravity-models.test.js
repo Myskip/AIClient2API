@@ -11,6 +11,7 @@ jest.mock('../src/utils/proxy-utils.js', () => ({
 
 import { AntigravityApiService, isAntigravityModelRetired } from '../src/providers/gemini/antigravity-core.js';
 import { PROVIDER_MODELS } from '../src/providers/provider-models.js';
+import { handleStreamRequest, handleUnaryRequest } from '../src/utils/common.js';
 
 describe('Antigravity model availability', () => {
     const cutoff = Date.UTC(2026, 10, 3);
@@ -75,6 +76,80 @@ describe('Antigravity model availability', () => {
             }
         } finally {
             jest.useRealTimers();
+        }
+    });
+
+    test.each([
+        ['unary', handleUnaryRequest, 'generateContent'],
+        ['streaming', handleStreamRequest, 'generateContentStream']
+    ])('reports a retired model as a non-retryable client error for %s requests', async (_label, handler, method) => {
+        jest.useFakeTimers().setSystemTime(cutoff);
+
+        const service = Object.create(AntigravityApiService.prototype);
+        service.tierId = 'free-tier';
+        service.availableModels = ['gemini-claude-sonnet-4-6'];
+        let policyError;
+        try {
+            service.buildAntigravityPayload('gemini-claude-sonnet-4-6', {});
+        } catch (error) {
+            policyError = error;
+        } finally {
+            jest.useRealTimers();
+        }
+
+        expect(policyError).toMatchObject({
+            status: 400,
+            response: { status: 400 },
+            skipErrorCount: true
+        });
+
+        const requestService = { [method]: jest.fn().mockRejectedValue(policyError) };
+        const poolManager = {
+            markProviderHealthy: jest.fn(),
+            markProviderUnhealthy: jest.fn(),
+            markProviderUnhealthyWithRecoveryTime: jest.fn(),
+            releaseSlot: jest.fn()
+        };
+        const response = {
+            writableEnded: false,
+            writeHead: jest.fn(function (statusCode) {
+                this.statusCode = statusCode;
+            }),
+            write: jest.fn(),
+            end: jest.fn(function () {
+                this.writableEnded = true;
+            }),
+            on: jest.fn(),
+            off: jest.fn()
+        };
+
+        await handler(
+            response,
+            requestService,
+            'gemini-claude-sonnet-4-6',
+            {},
+            'gemini',
+            'gemini-antigravity',
+            'none',
+            null,
+            poolManager,
+            'healthy-account',
+            null,
+            { CONFIG: {}, maxRetries: 2 }
+        );
+
+        expect(requestService[method]).toHaveBeenCalledTimes(1);
+        expect(poolManager.markProviderUnhealthy).not.toHaveBeenCalled();
+        expect(poolManager.markProviderUnhealthyWithRecoveryTime).not.toHaveBeenCalled();
+        expect(poolManager.releaseSlot).toHaveBeenCalledWith('gemini-antigravity', 'healthy-account');
+        if (method === 'generateContent') {
+            expect(response.statusCode).toBe(400);
+        } else {
+            const streamPayload = response.write.mock.calls.flat().join('');
+            expect(response.statusCode).toBe(200);
+            expect(streamPayload).toContain('"code":400');
+            expect(streamPayload).toContain('INVALID_ARGUMENT');
+            expect(streamPayload).toContain('ended on 2026-11-03');
         }
     });
 });
