@@ -11,7 +11,9 @@ jest.mock('../src/utils/proxy-utils.js', () => ({
 
 import { AntigravityApiService, isAntigravityModelRetired } from '../src/providers/gemini/antigravity-core.js';
 import { PROVIDER_MODELS } from '../src/providers/provider-models.js';
-import { handleStreamRequest, handleUnaryRequest } from '../src/utils/common.js';
+import { ProviderPoolManager } from '../src/providers/provider-pool-manager.js';
+import { getServiceAdapter } from '../src/providers/adapter.js';
+import { ENDPOINT_TYPE, MODEL_PROVIDER, handleModelListRequest, handleStreamRequest, handleUnaryRequest } from '../src/utils/common.js';
 
 describe('Antigravity model availability', () => {
     const cutoff = Date.UTC(2026, 10, 3);
@@ -150,6 +152,72 @@ describe('Antigravity model availability', () => {
             expect(streamPayload).toContain('"code":400');
             expect(streamPayload).toContain('INVALID_ARGUMENT');
             expect(streamPayload).toContain('ended on 2026-11-03');
+        }
+    });
+
+    test('filters auto-mode listings across free and mixed-tier Antigravity pools', async () => {
+        jest.useFakeTimers().setSystemTime(cutoff);
+
+        const listAutoModels = async (tiers, endpointType) => {
+            const providerStatus = tiers.map((tierId, index) => {
+                const config = {
+                    MODEL_PROVIDER: MODEL_PROVIDER.ANTIGRAVITY,
+                    uuid: `antigravity-auto-${index}`
+                };
+                const serviceAdapter = getServiceAdapter(config);
+                serviceAdapter.listModels = jest.fn(async () => {
+                    serviceAdapter.antigravityApiService.tierId = tierId;
+                    const models = tierId === 'free-tier'
+                        ? ['gemini-3.8-flash-medium']
+                        : tierId
+                            ? ['gemini-3.8-flash-medium', 'gemini-claude-sonnet-4-6']
+                            : [];
+                    return { models: models.map(model => ({ name: `models/${model}` })) };
+                });
+                return { config, uuid: config.uuid };
+            });
+            const poolManager = Object.create(ProviderPoolManager.prototype);
+            poolManager.providerStatus = { [MODEL_PROVIDER.ANTIGRAVITY]: providerStatus };
+            poolManager.globalConfig = {};
+            poolManager._log = jest.fn();
+
+            const response = {
+                writeHead: jest.fn(),
+                end: jest.fn(body => {
+                    response.body = body;
+                })
+            };
+            await handleModelListRequest(
+                {},
+                response,
+                null,
+                endpointType,
+                { MODEL_PROVIDER: MODEL_PROVIDER.AUTO, customModels: [] },
+                poolManager,
+                null
+            );
+            const modelList = JSON.parse(response.body);
+            return endpointType === ENDPOINT_TYPE.OPENAI_MODEL_LIST
+                ? modelList.data.map(model => model.id)
+                : modelList.models.map(model => model.name.replace(/^models\//, ''));
+        };
+
+        try {
+            for (const endpointType of [ENDPOINT_TYPE.OPENAI_MODEL_LIST, ENDPOINT_TYPE.GEMINI_MODEL_LIST]) {
+                const freeOnlyModels = await listAutoModels(['free-tier'], endpointType);
+                expect(freeOnlyModels).not.toContain('gemini-antigravity:gemini-claude-sonnet-4-6');
+                expect(freeOnlyModels).not.toContain('gemini-antigravity:gpt-oss-120b-medium');
+
+                const mixedTierModels = await listAutoModels(['free-tier', 'Google AI Pro(free)'], endpointType);
+                expect(mixedTierModels).toContain('gemini-antigravity:gemini-claude-sonnet-4-6');
+                expect(mixedTierModels).not.toContain('gemini-antigravity:gpt-oss-120b-medium');
+
+                const unknownTierModels = await listAutoModels(['free-tier', undefined], endpointType);
+                expect(unknownTierModels).toContain('gemini-antigravity:gemini-claude-sonnet-4-6');
+                expect(unknownTierModels).toContain('gemini-antigravity:gpt-oss-120b-medium');
+            }
+        } finally {
+            jest.useRealTimers();
         }
     });
 });

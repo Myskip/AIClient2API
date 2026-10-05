@@ -1463,6 +1463,52 @@ export class ProviderPoolManager {
                         ...customModelIds
                     ]);
 
+                if (providerType === MODEL_PROVIDER.ANTIGRAVITY && this.providerStatus[providerType].length > 0) {
+                    const { isAntigravityModelRetired } = await import('./gemini/antigravity-core.js');
+                    const currentTime = Date.now();
+                    if (models.some(model => isAntigravityModelRetired(model, currentTime, 'free-tier'))) {
+                        const accountAvailability = [];
+                        for (const providerStatus of this.providerStatus[providerType]) {
+                            let tierId;
+                            let accountModelIds = null;
+                            try {
+                                const tempConfig = {
+                                    ...this.globalConfig,
+                                    ...providerStatus.config,
+                                    MODEL_PROVIDER: providerType
+                                };
+                                delete tempConfig.providerPools;
+                                const serviceAdapter = getServiceAdapter(tempConfig);
+                                if (typeof serviceAdapter.listModels === 'function') {
+                                    try {
+                                        const nativeModelList = await serviceAdapter.listModels();
+                                        if (Array.isArray(nativeModelList?.models)) {
+                                            accountModelIds = new Set(nativeModelList.models
+                                                .map(model => model.name?.replace(/^models\//, ''))
+                                                .filter(Boolean));
+                                        }
+                                    } catch (err) {
+                                        this._log('debug', `Failed to load Antigravity account tier for ${providerStatus.uuid}: ${err.message}`);
+                                    }
+                                }
+                                tierId = serviceAdapter.antigravityApiService?.tierId;
+                            } catch (err) {
+                                this._log('debug', `Failed to inspect Antigravity account tier for ${providerStatus.uuid}: ${err.message}`);
+                            }
+                            accountAvailability.push({ tierId, modelIds: accountModelIds });
+                        }
+
+                        models = models.filter(model => {
+                            if (!isAntigravityModelRetired(model, currentTime, 'free-tier')) return true;
+                            return accountAvailability.some(({ tierId, modelIds }) => {
+                                if (!tierId) return true;
+                                if (isAntigravityModelRetired(model, currentTime, tierId)) return false;
+                                return !modelIds || modelIds.has(model);
+                            });
+                        });
+                    }
+                }
+
                 // 如果硬编码的模型列表为空，或者该类型的提供商在号池中没有配置节点，尝试从服务获取
                 // 只有在非号池模式，或者号池中有节点时才尝试获取，避免无节点时读取全局默认配置
                 if (models.length === 0 && (!this.providerStatus[providerType] || this.providerStatus[providerType].length > 0)) {
