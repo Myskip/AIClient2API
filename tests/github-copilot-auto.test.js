@@ -154,6 +154,29 @@ describe('GitHub Copilot Auto routing', () => {
         expect(service.axiosInstance.request).toHaveBeenCalledTimes(1);
     });
 
+    test('decodes Chinese and emoji characters split across HTTP buffers', async () => {
+        const { service } = createService();
+        const sseBuffer = Buffer.from('data: {"id":"completion-1","choices":[{"delta":{"content":"你好🙂"}}]}\n\n');
+        const chineseSplitIndex = sseBuffer.indexOf(Buffer.from('你')) + 1;
+        const emojiSplitIndex = sseBuffer.indexOf(Buffer.from('🙂')) + 2;
+        service.axiosInstance.request = jest.fn().mockResolvedValue({
+            data: Readable.from([
+                sseBuffer.subarray(0, chineseSplitIndex),
+                sseBuffer.subarray(chineseSplitIndex, emojiSplitIndex),
+                sseBuffer.subarray(emojiSplitIndex),
+                Buffer.from('data: [DONE]\n\n')
+            ])
+        });
+
+        const chunks = [];
+        for await (const chunk of service.generateContentStream('gpt-4.1', { model: 'gpt-4.1' })) {
+            chunks.push(chunk);
+        }
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].choices[0].delta.content).toBe('你好🙂');
+    });
+
     test('preserves Copilot API error details for health-check diagnostics', async () => {
         const { service } = createService();
         service.axiosInstance.request = jest.fn().mockRejectedValue(Object.assign(new Error('Request failed with status code 400'), {

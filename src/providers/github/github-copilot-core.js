@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
 import { CopilotClient } from '@github/copilot-sdk';
 import logger from '../../utils/logger.js';
 import { configureAxiosProxy, configureTLSSidecar, isTLSSidecarEnabledForProvider } from '../../utils/proxy-utils.js';
@@ -443,9 +444,10 @@ export class GitHubCopilotApiService {
 
             const stream = response.data;
             let buffer = '';
+            const decoder = new StringDecoder('utf8');
 
             for await (const chunk of stream) {
-                buffer += chunk.toString();
+                buffer += typeof chunk === 'string' ? chunk : decoder.write(chunk);
                 let newlineIndex;
                 while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
                     const line = buffer.substring(0, newlineIndex).trim();
@@ -468,6 +470,7 @@ export class GitHubCopilotApiService {
                     }
                 }
             }
+            buffer += decoder.end();
         } catch (error) {
             const status = error.response?.status;
             const data = error.response?.data;
