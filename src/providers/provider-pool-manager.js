@@ -1019,18 +1019,17 @@ export class ProviderPoolManager {
         this._isSelecting[providerType] = true;
         
         try {
-            // 在锁内部执行同步选择
-            return this._doSelectProvider(providerType, requestedModel, options);
+            return await this._doSelectProvider(providerType, requestedModel, options);
         } finally {
             this._isSelecting[providerType] = false;
         }
     }
 
     /**
-     * 实际执行 provider 选择的内部方法（同步执行，由锁保护）
+        * 实际执行 provider 选择的内部方法（异步执行，由锁保护）
      * @private
      */
-    _doSelectProvider(providerType, requestedModel, options) {
+    async _doSelectProvider(providerType, requestedModel, options) {
         const availableProviders = this.providerStatus[providerType] || [];
         
         // 检查并恢复已到恢复时间的提供商
@@ -1048,7 +1047,7 @@ export class ProviderPoolManager {
 
         // 如果指定了模型，则排除不支持该模型的提供商
         if (requestedModel) {
-            const modelFilteredProviders = availableAndHealthyProviders.filter(p => {
+            let modelFilteredProviders = availableAndHealthyProviders.filter(p => {
                 const supportedModels = getConfiguredSupportedModels(providerType, p.config);
                 if (supportedModels.length > 0) {
                     return supportedModels.includes(requestedModel);
@@ -1060,6 +1059,28 @@ export class ProviderPoolManager {
                 // 检查 notSupportedModels 数组中是否包含请求的模型，如果包含则排除
                 return !p.config.notSupportedModels.includes(requestedModel);
             });
+
+            if (providerType === MODEL_PROVIDER.ANTIGRAVITY) {
+                const { isAntigravityModelRetired } = await import('./gemini/antigravity-core.js');
+                if (isAntigravityModelRetired(requestedModel, now, 'free-tier')) {
+                    modelFilteredProviders = modelFilteredProviders.filter(provider => {
+                        try {
+                            const tempConfig = {
+                                ...this.globalConfig,
+                                ...provider.config,
+                                MODEL_PROVIDER: providerType
+                            };
+                            delete tempConfig.providerPools;
+                            const serviceAdapter = getServiceAdapter(tempConfig);
+                            const tierId = serviceAdapter.antigravityApiService?.tierId;
+                            return !isAntigravityModelRetired(requestedModel, now, tierId);
+                        } catch (err) {
+                            this._log('debug', `Failed to inspect Antigravity account tier for ${provider.uuid}: ${err.message}`);
+                            return true;
+                        }
+                    });
+                }
+            }
 
             if (modelFilteredProviders.length === 0) {
                 this._log('warn', `No available providers for type: ${providerType} that support model: ${requestedModel}`);
