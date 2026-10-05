@@ -22,16 +22,22 @@ import { Readable } from 'node:stream';
 describe('GitHub Copilot Auto routing', () => {
     function createService() {
         let emit;
+        let streamingEnabled = false;
+        let idleEmitted = false;
         const session = {
             sessionId: 'test-session',
             sendAndWait: jest.fn().mockResolvedValue({
                 data: { content: 'Auto response', outputTokens: 2 }
             }),
             send: jest.fn(async () => {
-                emit({ type: 'assistant.message_delta', data: { deltaContent: 'Auto ' } });
-                emit({ type: 'assistant.message_delta', data: { deltaContent: 'response' } });
+                if (streamingEnabled) {
+                    emit({ type: 'assistant.message_delta', data: { deltaContent: 'Auto ' } });
+                    await new Promise(resolve => setImmediate(resolve));
+                    emit({ type: 'assistant.message_delta', data: { deltaContent: 'response' } });
+                }
                 emit({ type: 'assistant.message', data: { content: 'Auto response' } });
                 emit({ type: 'session.idle', data: { mode: 'interactive' } });
+                idleEmitted = true;
             }),
             on: jest.fn(handler => {
                 emit = handler;
@@ -41,7 +47,10 @@ describe('GitHub Copilot Auto routing', () => {
         };
         const client = {
             start: jest.fn().mockResolvedValue(undefined),
-            createSession: jest.fn().mockResolvedValue(session),
+            createSession: jest.fn(async options => {
+                streamingEnabled = options.streaming === true;
+                return session;
+            }),
             deleteSession: jest.fn().mockResolvedValue(undefined)
         };
         const service = new GitHubCopilotApiService({
@@ -49,7 +58,7 @@ describe('GitHub Copilot Auto routing', () => {
             uuid: 'test-provider'
         });
         service.createSdkClient = () => client;
-        return { service, client, session };
+        return { service, client, session, isIdleEmitted: () => idleEmitted };
     }
 
     beforeEach(() => {
@@ -299,21 +308,27 @@ describe('GitHub Copilot Auto routing', () => {
     });
 
     test('streams SDK deltas as OpenAI chat-completion chunks', async () => {
-        const { service, client } = createService();
+        const { service, client, isIdleEmitted } = createService();
         const chunks = [];
+        const idleStateWhenContentArrived = [];
         for await (const chunk of service.generateContentStream('auto', {
             auto_tier: 'efficiency',
             messages: [{ role: 'user', content: 'Say hello.' }]
         })) {
             chunks.push(chunk);
+            if (chunk.choices[0].delta.content) {
+                idleStateWhenContentArrived.push(isIdleEmitted());
+            }
         }
 
         expect(client.createSession).toHaveBeenCalledWith(expect.objectContaining({
             model: 'auto',
-            capi: { autoTier: 'efficiency' }
+            capi: { autoTier: 'efficiency' },
+            streaming: true
         }));
         expect(chunks.map(chunk => chunk.choices[0].delta.content).filter(Boolean))
             .toEqual(['Auto ', 'response']);
+        expect(idleStateWhenContentArrived[0]).toBe(false);
         expect(chunks.at(-1).choices[0].finish_reason).toBe('stop');
         expect(client.deleteSession).toHaveBeenCalledWith('test-session');
     });

@@ -195,7 +195,7 @@ export class GitHubCopilotApiService {
         return { ...quota };
     }
 
-    async createAutoSession(requestBody, autoTier) {
+    async createAutoSession(requestBody, autoTier, streaming = false) {
         if (Array.isArray(requestBody.tools) && requestBody.tools.length > 0) {
             throw new Error('[GitHub Copilot] Auto mode via the Copilot SDK does not support OpenAI tool-call requests yet.');
         }
@@ -206,6 +206,7 @@ export class GitHubCopilotApiService {
             model: 'auto',
             capi: { autoTier },
             availableTools: [],
+            streaming,
             systemMessage: { mode: 'append', content: systemPrompt }
         });
         return { client, session, prompt, attachments };
@@ -281,7 +282,7 @@ export class GitHubCopilotApiService {
             );
             const context = this.getAutoRequestContext(requestId, autoTier);
             logger.info(`[GitHub Copilot SDK] Auto stream started (${context})`);
-            ({ client, session, prompt, attachments } = await this.createAutoSession(requestBody, autoTier));
+            ({ client, session, prompt, attachments } = await this.createAutoSession(requestBody, autoTier, true));
             const id = `chatcmpl-${randomUUID()}`;
             const created = Math.floor(Date.now() / 1000);
             deltaStream = new Readable({ objectMode: true, read() {} });
