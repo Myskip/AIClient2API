@@ -175,7 +175,6 @@
       <a href="https://www.axisnow.io">AxisNow</a> は、中国本土と世界各地のアクセス体験を両立しながら、Web サイトや API を保護・高速化します。さらにクライアント SDK を通じて、高速化とセキュリティ機能をネイティブ／モバイルアプリにも拡張します — <strong>セルフホスト型プライベート CDN｜サブスクリプション型 DDoS 防御 CDN｜自主管理でき、柔軟に組み合わせ可能な CDN ネットワーク。</strong>
     </td>
   </tr>
-<!-- RunningHub
   <tr>
     <td width="25%" align="center" valign="middle">
       <a href="https://www.runninghub.ai/call-api?source=github">
@@ -189,7 +188,6 @@
       <small style="color: #666;">RunningHub の割引や無料トライアルについては、<a href="mailto:zhenyuedong@haima.me">zhenyuedong@haima.me</a> までお問い合わせください。</small>
     </td>
   </tr>
--->
   <tr>
     <td width="25%" align="center" valign="middle">
       <img src="static/wechat.png" alt="Sponsor Contact" width="150">
