@@ -1161,7 +1161,7 @@ const translations = {
         'tutorial.config.file.config': '主配置文件，包含 API Key、端口、模型提供商等核心设置 (保存配置管理后自动新建)',
         'tutorial.config.file.pools': '提供商池配置，用于多账号轮询和故障转移 (保存节点后自动新建)',
         'tutorial.config.file.plugins': '插件配置，用于启用或禁用系统插件',
-        'tutorial.config.file.pwd': '后台登录密码文件，默认密码为 admin123',
+        'tutorial.config.file.pwd': '后台登录密码文件，首次启动时自动生成随机密码',
         'tutorial.main.title': '主配置详解 (config.json)',
         'tutorial.main.table.param': '参数',
         'tutorial.main.table.type': '类型',
@@ -1273,6 +1273,7 @@ const translations = {
         // Login
         'login.title': '登录 - AIClient2API',
         'login.heading': '请登录以继续',
+        'login.initialPasswordHint': '首次部署？初始密码已输出到服务启动日志；Docker 用户请运行 docker logs 查看。',
         'login.password': '密码',
         'login.passwordPlaceholder': '请输入密码',
         'login.error.empty': '请输入密码',
@@ -2448,7 +2449,7 @@ const translations = {
         'tutorial.config.file.config': 'Main config file with API Key, port, model provider settings (Automatically created after saving configuration management)',
         'tutorial.config.file.pools': 'Provider pool config for multi-account polling and failover (Automatically created after saving nodes)',
         'tutorial.config.file.plugins': 'Plugin config for enabling/disabling system plugins',
-        'tutorial.config.file.pwd': 'Admin password file, default password is admin123',
+        'tutorial.config.file.pwd': 'Admin password file; a random password is generated on first startup',
         'tutorial.main.title': 'Main Config Details (config.json)',
         'tutorial.main.table.param': 'Parameter',
         'tutorial.main.table.type': 'Type',
@@ -2560,6 +2561,7 @@ const translations = {
         // Login
         'login.title': 'Login - AIClient2API',
         'login.heading': 'Please login to continue',
+        'login.initialPasswordHint': 'First deployment? The initial password is in the service startup logs. For Docker, check docker logs.',
         'login.password': 'Password',
         'login.passwordPlaceholder': 'Please enter password',
         'login.error.empty': 'Please enter password',

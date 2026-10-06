@@ -354,7 +354,25 @@ docker compose up -d
 服务器启动后，打开浏览器访问：
 👉 [**http://localhost:3000**](http://localhost:3000)
 
-> **默认密码**: `admin123` (登录后可在控制台或修改 `pwd` 文件变更)
+> **初始密码**：首次启动时会自动生成随机密码并输出以下日志，请立即妥善保存；登录后可在控制台修改。
+>
+> ```text
+> [Auth] Initial admin password: <随机密码>
+> ```
+>
+> - 直接运行 `npm start`：在启动终端中查看。
+> - Docker Compose：运行 `docker logs aiclient2api 2>&1 | grep "Initial admin password"` 查看。
+> - 日志文件：默认位于 `logs/app-YYYY-MM-DD.log`。
+>
+> `configs/pwd` 中仅保存 PBKDF2 哈希，无法从该文件还原明文密码。如果错过了初始密码，请先停止服务，删除 `configs/pwd`，然后重新启动以生成新密码：
+>
+> ```bash
+> # Linux/macOS
+> rm configs/pwd
+>
+> # Windows PowerShell
+> Remove-Item configs/pwd
+> ```
 
 #### 3. 可视化配置 (推荐)
 进入 **"配置管理"** 页面，您可以直接：
@@ -414,7 +432,7 @@ docker compose up -d
 
 **📜 实时日志**：系统日志和请求日志实时显示，带管理控制
 
-**🔐 登录验证**：默认密码 `admin123`，可通过 `pwd` 文件修改
+**🔐 登录验证**：首次启动时生成唯一随机密码并打印到控制台/日志，登录后可在控制台修改
 
 访问：`http://localhost:3000` → 登录 → 侧边栏导航 → 立即生效
 

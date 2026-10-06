@@ -355,7 +355,25 @@ To build from source instead of using the pre-built image, edit `docker-compose.
 After the server starts, open your browser and visit:
 👉 [**http://localhost:3000**](http://localhost:3000)
 
-> **Default Password**: `admin123` (can be changed in the console or by modifying the `pwd` file after login)
+> **Initial Password**: On first startup, a random password is generated and emitted as shown below. Save it immediately; you can change it in the console after login.
+>
+> ```text
+> [Auth] Initial admin password: <random password>
+> ```
+>
+> - When running `npm start`, check the startup terminal.
+> - With Docker Compose, run `docker logs aiclient2api 2>&1 | grep "Initial admin password"`.
+> - The default log file is `logs/app-YYYY-MM-DD.log`.
+>
+> `configs/pwd` contains only a PBKDF2 hash, so the plaintext password cannot be recovered from it. If you missed the initial password, stop the service, delete `configs/pwd`, and restart the service to generate a new one:
+>
+> ```bash
+> # Linux/macOS
+> rm configs/pwd
+>
+> # Windows PowerShell
+> Remove-Item configs/pwd
+> ```
 
 #### 3. Visual Configuration (Recommended)
 Go to the **"Configuration"** page, you can:
@@ -415,7 +433,7 @@ A functional Web management interface, including:
 
 **📜 Real-time Logs**: Real-time display of system and request logs, with management controls
 
-**🔐 Login Verification**: Default password `admin123`, can be modified via `pwd` file
+**🔐 Login Verification**: A unique random password is generated on first startup and printed to the console/log; it can be changed in the console
 
 Access: `http://localhost:3000` → Login → Sidebar navigation → Take effect immediately
 
